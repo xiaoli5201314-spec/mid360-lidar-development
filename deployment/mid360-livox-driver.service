@@ -1,0 +1,22 @@
+[Unit]
+Description=Livox Mid-360S ROS 2 driver (waited + watched)
+Wants=network-online.target
+After=network-online.target mid360-lidar.service
+
+[Service]
+Type=simple
+User=robot
+Environment=ROS_DOMAIN_ID=0
+Environment=ROS_LOCALHOST_ONLY=0
+Environment=RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+Environment=FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+Environment=MID360_LIDAR_IF=eth0
+Environment=MID360_HOST_IP=192.0.2.10
+Environment=MID360_LIDAR_IP=192.0.2.20
+Environment=MID360_WAIT_TIMEOUT=60
+ExecStart=/usr/local/bin/mid360-livox-driver-start
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

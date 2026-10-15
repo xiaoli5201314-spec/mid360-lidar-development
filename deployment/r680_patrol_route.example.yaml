@@ -1,0 +1,13 @@
+# Replace these map-frame coordinates with points measured from RViz.
+# yaw is in radians; yaw_deg is also accepted.
+frame_id: map
+points:
+  - x: 1.0
+    y: 0.0
+    yaw: 0.0
+  - x: 3.0
+    y: 0.0
+    yaw: 0.0
+  - x: 3.0
+    y: 1.0
+    yaw_deg: 90

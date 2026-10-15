@@ -1,0 +1,22 @@
+<!--
+  Ackermann-safe dynamic-obstacle NavigateThroughPoses tree.
+  The RViz queue normally sends one NavigateToPose at a time; this tree keeps
+  the native action safe if it is used directly.
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <RecoveryNode number_of_retries="300" name="DynamicObstacleThroughPosesRecovery">
+      <PipelineSequence name="NavigateThroughPosesWithReplanning">
+        <RateController hz="1.0">
+          <ComputePathThroughPoses goals="{goals}" path="{path}" planner_id="SmacPlannerHybrid"/>
+        </RateController>
+        <FollowPath path="{path}" controller_id="FollowPath"/>
+      </PipelineSequence>
+      <ReactiveFallback name="DynamicObstacleWaitOrAcceptNewGoal">
+        <GoalUpdated/>
+        <Wait wait_duration="1.0"/>
+      </ReactiveFallback>
+    </RecoveryNode>
+  </BehaviorTree>
+</root>
+

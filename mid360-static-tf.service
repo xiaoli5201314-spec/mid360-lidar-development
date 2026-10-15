@@ -1,0 +1,18 @@
+[Unit]
+Description=MID-360S to FAST-LIO body static transform
+Wants=network-online.target
+After=network-online.target mid360-livox-driver.service
+
+[Service]
+Type=simple
+User=robot
+Environment=ROS_DOMAIN_ID=0
+Environment=ROS_LOCALHOST_ONLY=0
+Environment=RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+Environment=FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+ExecStart=/bin/bash -lc 'source /opt/ros/humble/setup.bash && exec ros2 run tf2_ros static_transform_publisher --x -0.011 --y -0.02329 --z 0.04412 --qx 0 --qy 0 --qz 0 --qw 1 --frame-id body --child-frame-id livox_frame'
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

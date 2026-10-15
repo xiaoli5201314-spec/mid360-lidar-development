@@ -1,0 +1,21 @@
+[Unit]
+Description=MID-360S vehicle reference transform (body to rear axle base_link)
+Wants=network-online.target
+After=network-online.target mid360-static-tf.service
+Requires=mid360-static-tf.service
+
+[Service]
+Type=simple
+User=robot
+Environment=ROS_DOMAIN_ID=0
+Environment=ROS_LOCALHOST_ONLY=0
+Environment=RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+Environment=FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+# Radar/body is 0.60 m ahead of the rear axle and 0.40 m above the ground.
+# The measured installation is centered on the vehicle, so y=0.00 m.
+ExecStart=/bin/bash -lc 'source /opt/ros/humble/setup.bash && exec ros2 run tf2_ros static_transform_publisher --x -0.60 --y 0.00 --z -0.40 --qx 0 --qy 0 --qz 0 --qw 1 --frame-id body --child-frame-id base_link'
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

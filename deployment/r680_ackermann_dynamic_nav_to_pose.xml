@@ -1,0 +1,30 @@
+<!--
+  Isolated dynamic-obstacle NavigateToPose tree for the R680 Ackermann chassis.
+  It never requests Spin, BackUp, or costmap clearing. A blocked path waits at
+  zero command, then retries planning at 1 Hz while retaining the current goal.
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <RecoveryNode number_of_retries="300" name="DynamicObstacleNavigateRecovery">
+      <PipelineSequence name="NavigateWithConditionalReplanning">
+        <RateController hz="1.0">
+          <Fallback>
+            <ReactiveSequence>
+              <Inverter>
+                <GlobalUpdatedGoal/>
+              </Inverter>
+              <IsPathValid path="{path}"/>
+            </ReactiveSequence>
+            <ComputePathToPose goal="{goal}" path="{path}" planner_id="SmacPlannerHybrid"/>
+          </Fallback>
+        </RateController>
+        <FollowPath path="{path}" controller_id="FollowPath"/>
+      </PipelineSequence>
+      <ReactiveFallback name="DynamicObstacleWaitOrAcceptNewGoal">
+        <GoalUpdated/>
+        <Wait wait_duration="1.0"/>
+      </ReactiveFallback>
+    </RecoveryNode>
+  </BehaviorTree>
+</root>
+

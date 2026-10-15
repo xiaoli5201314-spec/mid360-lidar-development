@@ -1,0 +1,28 @@
+<!--
+  Ackermann-safe NavigateToPose tree for the R680/MID-360S stack.
+
+  The stock Humble tree includes Spin and BackUp recovery actions.  An
+  Ackermann chassis cannot execute an in-place Spin, and the serial bridge is
+  intentionally not allowed to reinterpret one as a steering command.  This
+  tree therefore keeps only replanning and path following.  A failed plan or
+  controller is reported to the action client instead of issuing a
+  kinematically invalid recovery motion.
+-->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <PipelineSequence name="NavigateWithReplanning">
+      <RateController hz="1.0">
+        <Fallback>
+          <ReactiveSequence>
+            <Inverter>
+              <GlobalUpdatedGoal/>
+            </Inverter>
+            <IsPathValid path="{path}"/>
+          </ReactiveSequence>
+          <ComputePathToPose goal="{goal}" path="{path}" planner_id="SmacPlannerHybrid"/>
+        </Fallback>
+      </RateController>
+      <FollowPath path="{path}" controller_id="FollowPath"/>
+    </PipelineSequence>
+  </BehaviorTree>
+</root>

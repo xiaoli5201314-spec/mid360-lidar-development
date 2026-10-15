@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.service text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.rviz text eol=lf
+*.patch text eol=lf

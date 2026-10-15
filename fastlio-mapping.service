@@ -1,0 +1,21 @@
+[Unit]
+Description=FAST-LIO MID-360S mapping (manual/supervised)
+Wants=network-online.target
+After=network-online.target mid360-livox-driver.service mid360-static-tf.service
+Requires=mid360-livox-driver.service
+
+[Service]
+Type=simple
+User=robot
+Environment=ROS_DOMAIN_ID=0
+Environment=ROS_LOCALHOST_ONLY=0
+Environment=RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+Environment=FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+ExecStart=/bin/bash -lc 'source /opt/ros/humble/setup.bash && source /userdata/livox/ros2_ws/install/setup.bash && source /userdata/fastlio_ws/install/setup.bash && exec ros2 launch fast_lio mapping.launch.py rviz:=false config_path:=/userdata/fastlio_ws/install/fast_lio/share/fast_lio/config config_file:=mid360.yaml'
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+MemoryMax=6G
+
+[Install]
+WantedBy=multi-user.target

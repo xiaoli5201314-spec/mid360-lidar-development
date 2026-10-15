@@ -1,0 +1,116 @@
+diff --git a/src/laserMapping.cpp b/src/laserMapping.cpp
+index d919bdb..7f003df 100644
+--- a/src/laserMapping.cpp
++++ b/src/laserMapping.cpp
+@@ -33,6 +33,8 @@
+ // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ // POSSIBILITY OF SUCH DAMAGE.
+ #include <omp.h>
++#include <cstddef>
++#include <cstdint>
+ #include <mutex>
+ #include <math.h>
+ #include <thread>
+@@ -108,6 +110,36 @@ deque<double>                     time_buffer;
+ deque<PointCloudXYZI::Ptr>        lidar_buffer;
+ deque<sensor_msgs::msg::Imu::ConstSharedPtr> imu_buffer;
+ 
++constexpr std::size_t MAX_PENDING_LIDAR_SCANS = 1;
++std::uint64_t dropped_lidar_scans = 0;
++
++void clear_lidar_buffers_locked()
++{
++    lidar_buffer.clear();
++    time_buffer.clear();
++    lidar_pushed = false;
++}
++
++void trim_lidar_buffer_locked()
++{
++    if (lidar_buffer.size() != time_buffer.size() ||
++        (lidar_pushed && lidar_buffer.empty()))
++    {
++        clear_lidar_buffers_locked();
++        return;
++    }
++
++    // sync_packages() may already hold the front scan while waiting for IMU.
++    // Preserve that scan and keep only the newest not-yet-processed scan.
++    const std::size_t protected_scans = lidar_pushed ? 1U : 0U;
++    while (lidar_buffer.size() > protected_scans + MAX_PENDING_LIDAR_SCANS)
++    {
++        lidar_buffer.erase(lidar_buffer.begin() + protected_scans);
++        time_buffer.erase(time_buffer.begin() + protected_scans);
++        ++dropped_lidar_scans;
++    }
++}
++
+ PointCloudXYZI::Ptr featsFromMap(new PointCloudXYZI());
+ PointCloudXYZI::Ptr feats_undistort(new PointCloudXYZI());
+ PointCloudXYZI::Ptr feats_down_body(new PointCloudXYZI());
+@@ -289,7 +321,7 @@ void standard_pcl_cbk(const sensor_msgs::msg::PointCloud2::UniquePtr msg)
+     if (!is_first_lidar && cur_time < last_timestamp_lidar)
+     {
+         std::cerr << "lidar loop back, clear buffer" << std::endl;
+-        lidar_buffer.clear();
++        clear_lidar_buffers_locked();
+     }
+     if (is_first_lidar)
+     {
+@@ -300,6 +332,7 @@ void standard_pcl_cbk(const sensor_msgs::msg::PointCloud2::UniquePtr msg)
+     p_pre->process(msg, ptr);
+     lidar_buffer.push_back(ptr);
+     time_buffer.push_back(cur_time);
++    trim_lidar_buffer_locked();
+     last_timestamp_lidar = cur_time;
+     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
+     mtx_buffer.unlock();
+@@ -317,7 +350,7 @@ void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::UniquePtr msg)
+     if (!is_first_lidar && cur_time < last_timestamp_lidar)
+     {
+         std::cerr << "lidar loop back, clear buffer" << std::endl;
+-        lidar_buffer.clear();
++        clear_lidar_buffers_locked();
+     }
+     if(is_first_lidar)
+     {
+@@ -341,6 +374,7 @@ void livox_pcl_cbk(const livox_ros_driver2::msg::CustomMsg::UniquePtr msg)
+     p_pre->process(msg, ptr);
+     lidar_buffer.push_back(ptr);
+     time_buffer.push_back(last_timestamp_lidar);
++    trim_lidar_buffer_locked();
+     
+     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
+     mtx_buffer.unlock();
+@@ -382,6 +416,13 @@ double lidar_mean_scantime = 0.0;
+ int    scan_num = 0;
+ bool sync_packages(MeasureGroup &meas)
+ {
++    std::lock_guard<std::mutex> lock(mtx_buffer);
++    if (lidar_buffer.size() != time_buffer.size())
++    {
++        clear_lidar_buffers_locked();
++        return false;
++    }
++
+     if (lidar_buffer.empty() || imu_buffer.empty()) {
+         return false;
+     }
+@@ -925,13 +966,15 @@ public:
+             cout << "~~~~"<<ROOT_DIR<<" doesn't exist" << endl;
+ 
+         /*** ROS subscribe initialization ***/
++        auto lidar_qos = rclcpp::SensorDataQoS();
++        lidar_qos.keep_last(1);
+         if (p_pre->lidar_type == AVIA)
+         {
+-            sub_pcl_livox_ = this->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, 20, livox_pcl_cbk);
++            sub_pcl_livox_ = this->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, lidar_qos, livox_pcl_cbk);
+         }
+         else
+         {
+-            sub_pcl_pc_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, rclcpp::SensorDataQoS(), standard_pcl_cbk);
++            sub_pcl_pc_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, lidar_qos, standard_pcl_cbk);
+         }
+         sub_imu_ = this->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 10, imu_cbk);
+         pubLaserCloudFull_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered", 20);

@@ -1,0 +1,11 @@
+<!-- Ackermann-safe NavigateThroughPoses tree without Spin/BackUp recovery. -->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <PipelineSequence name="NavigateThroughPosesWithReplanning">
+      <RateController hz="1.0">
+        <ComputePathThroughPoses goals="{goals}" path="{path}" planner_id="SmacPlannerHybrid"/>
+      </RateController>
+      <FollowPath path="{path}" controller_id="FollowPath"/>
+    </PipelineSequence>
+  </BehaviorTree>
+</root>
